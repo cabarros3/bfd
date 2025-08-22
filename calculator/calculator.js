@@ -4,14 +4,20 @@ console.log("====================================");
 console.log("   🧮 Bem-vindo à Calculadora! 🧮   ");
 console.log("====================================\n");
 
-let n1 = Number(entrada("➡️  Digite o primeiro número: "));
-let n2 = Number(entrada("➡️  Digite o segundo número: "));
-
-if (isNaN(n1) || isNaN(n2)) {
-  // se não for um número
-  console.log("❌ Erro: Você deve digitar apenas números.");
-  process.exit(1);
+// Função para pedir número válido
+function pedirNumero(mensagem) {
+  let valor;
+  do {
+    valor = Number(entrada(mensagem));
+    if (isNaN(valor)) {
+      console.log("❌ Entrada inválida. Digite apenas números!\n");
+    }
+  } while (isNaN(valor));
+  return valor;
 }
+
+let n1 = pedirNumero("➡️  Digite o primeiro número: ");
+let n2 = pedirNumero("➡️  Digite o segundo número: ");
 
 console.log("\n📌 Escolha a operação:");
 console.log("1 - Soma");
@@ -37,4 +43,4 @@ function calculadora(n1, n2, operacao) {
   }
 }
 
-console.log(`\n✅ Resultado: ${calculadora(n1, n2, operacao)}`);
+console.log(`\n✅ Resultado: ${calculadora(n1, n2, operacao).toFixed(2)}`);
