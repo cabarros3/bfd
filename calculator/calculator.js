@@ -8,6 +8,7 @@ let n1 = Number(entrada("➡️  Digite o primeiro número: "));
 let n2 = Number(entrada("➡️  Digite o segundo número: "));
 
 if (isNaN(n1) || isNaN(n2)) {
+  // se não for um número
   console.log("❌ Erro: Você deve digitar apenas números.");
   process.exit(1);
 }
