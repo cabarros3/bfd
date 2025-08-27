@@ -7,7 +7,7 @@ Aqui serão armazenados exercícios, desafios e pequenos sistemas criados durant
 
 ## 📂 Projetos
 
-- 🧮 **Calculadora (JS)**  
+- 🧮 [**Calculadora (JS)**](https://github.com/cabarros3/bfd/tree/main/calculator)  
   Uma calculadora simples de linha de comando, feita em **JavaScript**, que permite realizar operações básicas: soma, subtração, multiplicação e divisão.
 
 ---
@@ -22,10 +22,10 @@ Aqui serão armazenados exercícios, desafios e pequenos sistemas criados durant
 
 1. Clone este repositório:
 
-   ````bash
-   git clone https://github.com/seu-usuario/seu-repositorio.git ```
+```bash
+   git clone https://github.com/seu-usuario/seu-repositorio.git
 
-   ````
+```
 
 2. Acesse a pasta do projeto
 
@@ -36,7 +36,7 @@ Aqui serão armazenados exercícios, desafios e pequenos sistemas criados durant
 3. Instale a dependência usada (prompt-sync)
 
 ```bash
-    npm install prompt-sync
+    npm install
 ```
 
 4. Execute o projeto da calculadora
