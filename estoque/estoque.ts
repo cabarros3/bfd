@@ -48,6 +48,14 @@ abstract class Movimentacao {
     return this.produto;
   }
 
+  get getQuantidade() {
+    return this.quantidade;
+  }
+
+  get getData() {
+    return this.data;
+  }
+
   executar(estoque: Estoque): void {}
 }
 
