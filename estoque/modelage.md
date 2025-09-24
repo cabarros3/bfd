@@ -5,30 +5,42 @@
 - nome
 - código
 - preco
-- quantidadeInicial
+- quantidade
++ adicionarEstoque() -- ok
++ removerEstoque() -- ok
++ verificarEstoque() -- ok
 
 ### classe abstrata Movimentacao
 
 - produtoCodigo
 - data
 - quantidade
-- executar(): void
+- registrar(): void
 
 ### classe entrada herda de Movimentação
 
-- executar(): void
+- registrar(): void
 
 ### classe saida herda de Movimentação
 
-- executar(): void
+- registrar(): void
 
 ### classe Estoque
 
-- listaProdutos (privado)
-- listaMovimentacoes (privado)
-- adicionaProduto()
+- listaProdutos (privado) -- ok
+- listaMovimentacoes (privado) -- ok
+- adicionaProduto() -- ok
 - registraMovimentacao()
-- consultaProdutos()
+- buscarProdutos() -- ok
+- listarProdutos() -- ok
 - relatorio()
-- calculaTotal()
-- estoqueBaixo()
+- calculaTotal() -- ok
+- MostrarEstoqueBaixo() -- ok
+
+
+MENU para colocar no programa
+cadastrar produto: pedir, um nome, um código, uma quantidade
+registrar saída: excluir pelo código, quantidade que será removida, 
+registrar entrada
+gerar relatório de estoque: mostrar nome do produto, código, preço e se está com o estoque baixo
+sair
