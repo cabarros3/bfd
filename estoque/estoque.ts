@@ -1,3 +1,6 @@
+const promptSync = require("prompt-sync");
+const entradaUser = promptSync({ sigint: false });
+
 // criar classe produto
 class Produto {
   private nome: string;
@@ -11,6 +14,7 @@ class Produto {
     this.codigo = codigo;
     this.preco = preco;
     this.quantidade = quantidade;
+    this.verficarEstoqueBaixo(); // vai verificar se na inicialização já começa com estoque baixo
   }
 
   get getNome() {
@@ -35,39 +39,33 @@ class Produto {
 
   set setQuantidade(valor: number) {
     this.quantidade = valor;
+    this.verficarEstoqueBaixo();
   }
 
-  // adiciona um produto a quantidade original
+  // adiciona um produto a quantidade
   adicionarEstoque(qtd: number): void {
     this.quantidade += qtd;
-    // console.log(
-    //   `A nova quantidade do produto ${this.nome} é ${this.quantidade}`
-    // );
+    this.verficarEstoqueBaixo();
   }
 
-  // remove produtos da quantidade original
+  // remove produtos da quantidade e verifica estoque baixo. trata erro de remoção maior que estoque disponível.
   removerEstoque(qtd: number): void {
     if (this.quantidade - qtd < 0) {
-      console.log(
-        "Não é possível remover a quantidade do estoque. Não é permitido estoque negativo."
-      );
-    } else {
-      this.quantidade -= qtd;
-      // console.log(
-      //   `A nova quantidade do produto ${this.nome} é ${this.quantidade}`
-      // );
+      throw new Error("Quantidade solicitada maior que o estoque disponível");
     }
+
+    this.quantidade -= qtd;
+    console.log("Saída registrada com sucesso!");
+    this.verficarEstoqueBaixo();
   }
 
   // verifica se o estoque de um produto está baixo
-  public verficarEstoqueBaixo() {
-    if (this.quantidade <= 5) {
-      this.estoqueBaixo = true;
-      console.log(`🚨 Atenção! Estoque baixo.`);
-    }
+  public verficarEstoqueBaixo(): void {
+    this.estoqueBaixo = this.quantidade <= 5; // delimita que a partir de 5 p estoque está baixo
   }
 }
 
+// classe abstrata
 abstract class Movimentacao {
   protected produto: Produto;
   protected quantidade: number;
@@ -93,26 +91,30 @@ abstract class Movimentacao {
   registrar(estoque: Estoque): void {}
 }
 
+// classe concreta
 class Entrada extends Movimentacao {
   registrar(estoque: Estoque): void {
     this.getProduto.adicionarEstoque(this.getQuantidade);
-    estoque.registrarMovimentacao(this); // não entendi esse this
-    console.log(
-      `Entrada registrada de ${this.getQuantidade} para ${this.getProduto.getNome}`
-    );
+    estoque.registrarMovimentacao(this); // esse this se refere a instância
+    console.log(`Entrada registrada com sucesso`);
   }
 }
 
+// classe concreta
 class Saida extends Movimentacao {
   registrar(estoque: Estoque): void {
-    this.getProduto.removerEstoque(this.getQuantidade);
-    estoque.registrarMovimentacao(this);
-    console.log(
-      `Saída registrada de ${this.getQuantidade} para ${this.getProduto.getNome}`
-    );
+    try {
+      this.getProduto.removerEstoque(this.getQuantidade);
+      estoque.registrarMovimentacao(this);
+    } catch (erro) {
+      if (erro instanceof Error) {
+        console.error("Falha ao remover estoque:", erro.message);
+      }
+    }
   }
 }
 
+// classe de estoque que funciona como gerenciador do estoque
 class Estoque {
   private listaProdutos: Produto[] = [];
   private listaMovimentacoes: Movimentacao[] = [];
@@ -121,111 +123,219 @@ class Estoque {
     return this.listaProdutos;
   }
 
-  // adiciona um produto ao estoque
-  adicionarProdruto(produto: Produto): void {
+  // adiciona um produto ao estoque (array listaProdutos)
+  adicionarProduto(produto: Produto): void {
     this.listaProdutos.push(produto);
   }
 
+  // adiciona ao array de movimentações as movimentações realizadas (listaMovimentacoes)
   registrarMovimentacao(mov: Movimentacao) {
     this.listaMovimentacoes.push(mov);
   }
 
-  // lista todos os produtos cadastrados
+  //lista todos os produtos cadastrados (código e nome do produto)
   listarProdutos(): void {
     console.log("========= Lista de todos os Produtos Cadastrados =======");
     for (let i: number = 0; i < this.listaProdutos.length; i++) {
       console.log("");
-      console.log(`Código: ${this.listaProdutos[i].getCodigo}`);
-      console.log(`Nome: ${this.listaProdutos[i].getNome}`);
-      console.log(`Preço: ${this.listaProdutos[i].getPreco}`);
-      console.log(`Quantidade: ${this.listaProdutos[i].getQuantidade}`);
-      this.listaProdutos[i].verficarEstoqueBaixo();
+      console.log(
+        `Código: ${this.listaProdutos[i].getCodigo} | Nome do Produto: ${this.listaProdutos[i].getNome}`
+      );
       console.log("");
     }
     console.log("========================================================");
   }
 
-  // busca um produto pelo título e mostra uma lista com os produtos de títulos iguais
+  // gera relatório com código, nome, preço, quantidade, total do produto e flag de estoque baixo. Além do valor total do estoque completo.
+  gerarRelatorio(): void {
+    console.log("===== RELATÓRIO DE ESTOQUE =====");
+    this.listaProdutos.forEach((produto) => {
+      const subtotal = produto.getPreco * produto.getQuantidade;
+      console.log(`Código: ${produto.getCodigo}`);
+      console.log(`Nome: ${produto.getNome}`);
+      console.log(`Preço: R$ ${produto.getPreco}`);
+      console.log(`Quantidade: ${produto.getQuantidade}`);
+      console.log(`Subtotal: R$ ${subtotal.toFixed(2)}`);
+      console.log(
+        produto.getEstoqueBaixo ? "⚠️  Estoque baixo" : "Estoque normal"
+      );
+      console.log("--------------------------------");
+    });
+    console.log(
+      `Valor total em estoque: R$ ${this.calcularValorTotal().toFixed(2)}`
+    );
+    console.log("================================");
+  }
+
+  // imprime no console um relatório de todas as movimentações feitas
+  relatorioMovimentacoes(): void {
+    console.log("===== RELATÓRIO DE MOVIMENTAÇÕES =====");
+    this.listaMovimentacoes.forEach((m) => {
+      // instanceof é um método que retorna true se o objeto for uma instância ou herda de alguma classe/construtor
+      const tipo = m instanceof Entrada ? "Entrada" : "Saída";
+      console.log(
+        `${tipo} | Código: ${m.getProduto.getCodigo} | Produto: ${
+          m.getProduto.getNome
+        } | Qtde: ${m.getQuantidade} | Data: ${m.getData.toLocaleString()}`
+      );
+    });
+    console.log("======================================");
+  }
+
+  // busca um produto pelo título e mostra uma lista com os produtos de títulos iguais. Informações detalhadas dos produtos encontrados.
   pesquisarProduto(termoDeBusca: string): void {
-    const termosEncontrados: Produto[] = [];
-    for (let i: number = 0; i < this.listaProdutos.length; i++) {
-      if (this.listaProdutos[i].getNome == termoDeBusca) {
-        termosEncontrados.push(this.listaProdutos[i]);
+    const encontrados: Produto[] = [];
+
+    for (const produto of this.listaProdutos) {
+      // usando o includes para pegar todos os produtos que possuem o termo
+      if (produto.getNome.toLowerCase().indexOf(termoDeBusca.toLowerCase())) {
+        encontrados.push(produto);
       }
     }
 
-    if (termosEncontrados.length > 0) {
-      console.log("========= Produto(s) Encontrado(s) ==========");
-      for (let i: number = 0; i < termosEncontrados.length; i++) {
-        console.log(`Produto: ${termosEncontrados[i].getCodigo}`);
-        console.log(`Nome: ${termosEncontrados[i].getNome}`);
-        console.log(`Preço: ${termosEncontrados[i].getPreco}`);
-        console.log(`Quantidade: ${termosEncontrados[i].getQuantidade}`);
-        termosEncontrados[i].verficarEstoqueBaixo();
-        console.log("");
-      }
-      console.log("=============================================");
-    } else {
+    if (encontrados.length === 0) {
       console.log("Nenhum produto foi encontrado com esse termo");
+      return;
     }
+
+    console.log("========= Produto(s) Encontrado(s) ==========");
+    for (const p of encontrados) {
+      console.log(`Código: ${p.getCodigo}`);
+      console.log(`Nome: ${p.getNome}`);
+      console.log(`Preço: ${p.getPreco}`);
+      console.log(`Quantidade: ${p.getQuantidade}`);
+      // p.verficarEstoqueBaixo();
+      console.log("");
+    }
+    console.log("=============================================");
   }
 
   // calcula o total dos produtos (preço * quantidade)
-  calcularValorTotal(): void {
-    let calculaTotal = 0;
-    for (let i: number = 0; i < this.listaProdutos.length; i++) {
-      calculaTotal +=
-        this.listaProdutos[i].getPreco * this.listaProdutos[i].getQuantidade;
+  // imprime no console se for true e se for false só atualiza
+  calcularValorTotal(imprimir: boolean = false): number {
+    const total = this.listaProdutos.reduce(
+      (acc, p) => acc + p.getPreco * p.getQuantidade,
+      0
+    );
+    if (imprimir) {
+      console.log(`O valor total do estoque é R$ ${total.toFixed(2)}`);
     }
-    console.log(`O valor total do estoque é R$ ${calculaTotal}`);
+    return total;
   }
 
   // mostra apenas os produtos com estoque baixo
-  mostrarProdutosEstoqueBaixo() {
+  mostrarProdutosEstoqueBaixo(): void {
     const estoqueBaixo: Produto[] = [];
-    for (let i: number = 0; i < this.listaProdutos.length; i++) {
-      this.listaProdutos[i].verficarEstoqueBaixo();
-      if (this.listaProdutos[i].getEstoqueBaixo == true) {
+    for (let i = 0; i < this.listaProdutos.length; i++) {
+      if (this.listaProdutos[i].getEstoqueBaixo) {
         estoqueBaixo.push(this.listaProdutos[i]);
       }
     }
 
-    for (let i: number = 0; i < estoqueBaixo.length; i++) {
-      console.log("");
-      console.log(`Código: ${this.listaProdutos[i].getCodigo}`);
-      console.log(`Nome: ${this.listaProdutos[i].getNome}`);
-      console.log(`Preço: ${this.listaProdutos[i].getPreco}`);
-      console.log(`Quantidade: ${this.listaProdutos[i].getQuantidade}`);
-      console.log("");
+    if (estoqueBaixo.length === 0) {
+      console.log("Nenhum produto com estoque baixo.");
+      return;
+    }
+
+    console.log("==== PRODUTOS COM ESTOQUE BAIXO ====");
+    for (let i = 0; i < estoqueBaixo.length; i++) {
+      const prod = estoqueBaixo[i];
+      console.log(`Código: ${prod.getCodigo}`);
+      console.log(`Nome: ${prod.getNome}`);
+      console.log(`Preço: ${prod.getPreco}`);
+      console.log(`Quantidade: ${prod.getQuantidade}`);
+      console.log("--------------------------------");
     }
   }
 }
 
-// criar produtos
-const p = new Produto("Feijão", "F1", 10.5, 10);
-const p0 = new Produto("Feijão", "F12", 15.5, 5);
-const p1 = new Produto("Arroz", "A1", 8.0, 12);
+// instância do estoque
+const estoque = new Estoque();
 
-// criar estoque
-const e = new Estoque();
+// função para criar o produto
+function criarProduto(): Produto {
+  const nome = entradaUser("Nome do produto: ")!;
+  const codigo = entradaUser("Código do produto: ")!;
+  const preco = Number(entradaUser("Preço: "))!;
+  const quantidade = Number(entradaUser("Quantidade: "))!;
+  return new Produto(nome, codigo, preco, quantidade);
+}
 
-// adicionar produto
-e.adicionarProdruto(p);
-e.adicionarProdruto(p1);
-e.adicionarProdruto(p0);
+// função para escolher um produto pelo código
+function escolherProduto(): Produto | null {
+  const codigo = entradaUser("Informe o código do produto: ")!;
+  const produto = estoque.getListaProdutos.find((p) => p.getCodigo === codigo);
+  if (!produto) console.log("Produto não encontrado!");
+  return produto || null;
+}
 
-// movimentação
-const entrada = new Entrada(p, 10);
-entrada.registrar(e);
-const saida = new Saida(p, 5);
-saida.registrar(e);
-// const entrada2 = new Entrada(p0, 10);
-// entrada2.registrar(e);
-// const entrada3 = new Entrada(p1, 5);
-// entrada3.registrar(e);
+// criando um menu principal dentro de uma function para executar somente se for chamado
+function menu() {
+  let opcao = "";
 
-e.registrarMovimentacao(entrada);
+  while (opcao !== "0") {
+    console.log("\n=== MENU ESTOQUE ===");
+    console.log("1 - Adicionar produto");
+    console.log("2 - Registrar entrada");
+    console.log("3 - Registrar saída");
+    console.log("4 - Listar produtos");
+    console.log("5 - Gerar relatório de estoque");
+    console.log("6 - Mostrar produtos com estoque baixo");
+    console.log("7 - Pesquisar produto");
+    console.log("0 - Sair");
+    opcao = entradaUser("Escolha uma opção: ")!;
 
-// e.listarProdutos();
-// e.calcularValorTotal();
-// e.mostrarProdutosEstoqueBaixo();
+    switch (opcao) {
+      case "1":
+        const novoProduto = criarProduto();
+        estoque.adicionarProduto(novoProduto);
+        console.log("Produto adicionado com sucesso!");
+        break;
+
+      case "2":
+        const prodEntrada = escolherProduto();
+        if (prodEntrada) {
+          const qtdEntrada = Number(entradaUser("Quantidade de entrada: "));
+          const entrada = new Entrada(prodEntrada, qtdEntrada);
+          entrada.registrar(estoque);
+        }
+        break;
+
+      case "3":
+        const prodSaida = escolherProduto();
+        if (prodSaida) {
+          const qtdSaida = Number(entradaUser("Quantidade de saída: "));
+          const saida = new Saida(prodSaida, qtdSaida);
+          saida.registrar(estoque);
+        }
+        break;
+
+      case "4":
+        estoque.listarProdutos();
+        break;
+
+      case "5":
+        estoque.gerarRelatorio();
+        break;
+
+      case "6":
+        estoque.mostrarProdutosEstoqueBaixo();
+        break;
+
+      case "7":
+        const termo = entradaUser("Digite o nome do produto para buscar: ")!;
+        estoque.pesquisarProduto(termo);
+        break;
+
+      case "0":
+        console.log("Saindo...");
+        break;
+
+      default:
+        console.log("Opção inválida! Tente novamente.");
+    }
+  }
+}
+
+// iniciar menu
+menu();

@@ -13,6 +13,8 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
+var promptSync = require("prompt-sync");
+var entradaUser = promptSync({ sigint: false });
 // criar classe produto
 var Produto = /** @class */ (function () {
     function Produto(nome, codigo, preco, quantidade) {
@@ -21,6 +23,7 @@ var Produto = /** @class */ (function () {
         this.codigo = codigo;
         this.preco = preco;
         this.quantidade = quantidade;
+        this.verficarEstoqueBaixo(); // vai verificar se na inicialização já começa com estoque baixo
     }
     Object.defineProperty(Produto.prototype, "getNome", {
         get: function () {
@@ -60,38 +63,32 @@ var Produto = /** @class */ (function () {
     Object.defineProperty(Produto.prototype, "setQuantidade", {
         set: function (valor) {
             this.quantidade = valor;
+            this.verficarEstoqueBaixo();
         },
         enumerable: false,
         configurable: true
     });
-    // adiciona um produto a quantidade original
+    // adiciona um produto a quantidade
     Produto.prototype.adicionarEstoque = function (qtd) {
         this.quantidade += qtd;
-        // console.log(
-        //   `A nova quantidade do produto ${this.nome} é ${this.quantidade}`
-        // );
+        this.verficarEstoqueBaixo();
     };
-    // remove produtos da quantidade original
+    // remove produtos da quantidade e verifica estoque baixo. trata erro de remoção maior que estoque disponível.
     Produto.prototype.removerEstoque = function (qtd) {
         if (this.quantidade - qtd < 0) {
-            console.log("Não é possível remover a quantidade do estoque. Não é permitido estoque negativo.");
+            throw new Error("Quantidade solicitada maior que o estoque disponível");
         }
-        else {
-            this.quantidade -= qtd;
-            // console.log(
-            //   `A nova quantidade do produto ${this.nome} é ${this.quantidade}`
-            // );
-        }
+        this.quantidade -= qtd;
+        console.log("Saída registrada com sucesso!");
+        this.verficarEstoqueBaixo();
     };
     // verifica se o estoque de um produto está baixo
     Produto.prototype.verficarEstoqueBaixo = function () {
-        if (this.quantidade <= 5) {
-            this.estoqueBaixo = true;
-            console.log("\uD83D\uDEA8 Aten\u00E7\u00E3o! Estoque baixo.");
-        }
+        this.estoqueBaixo = this.quantidade <= 5; // delimita que a partir de 5 p estoque está baixo
     };
     return Produto;
 }());
+// classe abstrata
 var Movimentacao = /** @class */ (function () {
     function Movimentacao(produto, quantidade) {
         this.data = new Date();
@@ -122,6 +119,7 @@ var Movimentacao = /** @class */ (function () {
     Movimentacao.prototype.registrar = function (estoque) { };
     return Movimentacao;
 }());
+// classe concreta
 var Entrada = /** @class */ (function (_super) {
     __extends(Entrada, _super);
     function Entrada() {
@@ -129,23 +127,31 @@ var Entrada = /** @class */ (function (_super) {
     }
     Entrada.prototype.registrar = function (estoque) {
         this.getProduto.adicionarEstoque(this.getQuantidade);
-        estoque.registrarMovimentacao(this); // não entendi esse this
-        console.log("Entrada registrada de ".concat(this.getQuantidade, " para ").concat(this.getProduto.getNome));
+        estoque.registrarMovimentacao(this); // esse this se refere a instância
+        console.log("Entrada registrada com sucesso");
     };
     return Entrada;
 }(Movimentacao));
+// classe concreta
 var Saida = /** @class */ (function (_super) {
     __extends(Saida, _super);
     function Saida() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
     Saida.prototype.registrar = function (estoque) {
-        this.getProduto.removerEstoque(this.getQuantidade);
-        estoque.registrarMovimentacao(this);
-        console.log("Sa\u00EDda registrada de ".concat(this.getQuantidade, " para ").concat(this.getProduto.getNome));
+        try {
+            this.getProduto.removerEstoque(this.getQuantidade);
+            estoque.registrarMovimentacao(this);
+        }
+        catch (erro) {
+            if (erro instanceof Error) {
+                console.error("Falha ao remover estoque:", erro.message);
+            }
+        }
     };
     return Saida;
 }(Movimentacao));
+// classe de estoque que funciona como gerenciador do estoque
 var Estoque = /** @class */ (function () {
     function Estoque() {
         this.listaProdutos = [];
@@ -158,100 +164,184 @@ var Estoque = /** @class */ (function () {
         enumerable: false,
         configurable: true
     });
-    // adiciona um produto ao estoque
-    Estoque.prototype.adicionarProdruto = function (produto) {
+    // adiciona um produto ao estoque (array listaProdutos)
+    Estoque.prototype.adicionarProduto = function (produto) {
         this.listaProdutos.push(produto);
     };
+    // adiciona ao array de movimentações as movimentações realizadas (listaMovimentacoes)
     Estoque.prototype.registrarMovimentacao = function (mov) {
         this.listaMovimentacoes.push(mov);
     };
-    // lista todos os produtos cadastrados
+    //lista todos os produtos cadastrados (código e nome do produto)
     Estoque.prototype.listarProdutos = function () {
         console.log("========= Lista de todos os Produtos Cadastrados =======");
         for (var i = 0; i < this.listaProdutos.length; i++) {
             console.log("");
-            console.log("C\u00F3digo: ".concat(this.listaProdutos[i].getCodigo));
-            console.log("Nome: ".concat(this.listaProdutos[i].getNome));
-            console.log("Pre\u00E7o: ".concat(this.listaProdutos[i].getPreco));
-            console.log("Quantidade: ".concat(this.listaProdutos[i].getQuantidade));
-            this.listaProdutos[i].verficarEstoqueBaixo();
+            console.log("C\u00F3digo: ".concat(this.listaProdutos[i].getCodigo, " | Nome do Produto: ").concat(this.listaProdutos[i].getNome));
             console.log("");
         }
         console.log("========================================================");
     };
-    // busca um produto pelo título e mostra uma lista com os produtos de títulos iguais
+    // gera relatório com código, nome, preço, quantidade, total do produto e flag de estoque baixo. Além do valor total do estoque completo.
+    Estoque.prototype.gerarRelatorio = function () {
+        console.log("===== RELATÓRIO DE ESTOQUE =====");
+        this.listaProdutos.forEach(function (produto) {
+            var subtotal = produto.getPreco * produto.getQuantidade;
+            console.log("C\u00F3digo: ".concat(produto.getCodigo));
+            console.log("Nome: ".concat(produto.getNome));
+            console.log("Pre\u00E7o: R$ ".concat(produto.getPreco));
+            console.log("Quantidade: ".concat(produto.getQuantidade));
+            console.log("Subtotal: R$ ".concat(subtotal.toFixed(2)));
+            console.log(produto.getEstoqueBaixo ? "⚠️  Estoque baixo" : "Estoque normal");
+            console.log("--------------------------------");
+        });
+        console.log("Valor total em estoque: R$ ".concat(this.calcularValorTotal().toFixed(2)));
+        console.log("================================");
+    };
+    // imprime no console um relatório de todas as movimentações feitas
+    Estoque.prototype.relatorioMovimentacoes = function () {
+        console.log("===== RELATÓRIO DE MOVIMENTAÇÕES =====");
+        this.listaMovimentacoes.forEach(function (m) {
+            // instanceof é um método que retorna true se o objeto for uma instância ou herda de alguma classe/construtor
+            var tipo = m instanceof Entrada ? "Entrada" : "Saída";
+            console.log("".concat(tipo, " | C\u00F3digo: ").concat(m.getProduto.getCodigo, " | Produto: ").concat(m.getProduto.getNome, " | Qtde: ").concat(m.getQuantidade, " | Data: ").concat(m.getData.toLocaleString()));
+        });
+        console.log("======================================");
+    };
+    // busca um produto pelo título e mostra uma lista com os produtos de títulos iguais. Informações detalhadas dos produtos encontrados.
     Estoque.prototype.pesquisarProduto = function (termoDeBusca) {
-        var termosEncontrados = [];
-        for (var i = 0; i < this.listaProdutos.length; i++) {
-            if (this.listaProdutos[i].getNome == termoDeBusca) {
-                termosEncontrados.push(this.listaProdutos[i]);
+        var encontrados = [];
+        for (var _i = 0, _a = this.listaProdutos; _i < _a.length; _i++) {
+            var produto = _a[_i];
+            // usando o includes para pegar todos os produtos que possuem o termo
+            if (produto.getNome.toLowerCase().indexOf(termoDeBusca.toLowerCase())) {
+                encontrados.push(produto);
             }
         }
-        if (termosEncontrados.length > 0) {
-            console.log("========= Produto(s) Encontrado(s) ==========");
-            for (var i = 0; i < termosEncontrados.length; i++) {
-                console.log("Produto: ".concat(termosEncontrados[i].getCodigo));
-                console.log("Nome: ".concat(termosEncontrados[i].getNome));
-                console.log("Pre\u00E7o: ".concat(termosEncontrados[i].getPreco));
-                console.log("Quantidade: ".concat(termosEncontrados[i].getQuantidade));
-                termosEncontrados[i].verficarEstoqueBaixo();
-                console.log("");
-            }
-            console.log("=============================================");
-        }
-        else {
+        if (encontrados.length === 0) {
             console.log("Nenhum produto foi encontrado com esse termo");
+            return;
         }
+        console.log("========= Produto(s) Encontrado(s) ==========");
+        for (var _b = 0, encontrados_1 = encontrados; _b < encontrados_1.length; _b++) {
+            var p = encontrados_1[_b];
+            console.log("C\u00F3digo: ".concat(p.getCodigo));
+            console.log("Nome: ".concat(p.getNome));
+            console.log("Pre\u00E7o: ".concat(p.getPreco));
+            console.log("Quantidade: ".concat(p.getQuantidade));
+            // p.verficarEstoqueBaixo();
+            console.log("");
+        }
+        console.log("=============================================");
     };
     // calcula o total dos produtos (preço * quantidade)
-    Estoque.prototype.calcularValorTotal = function () {
-        var calculaTotal = 0;
-        for (var i = 0; i < this.listaProdutos.length; i++) {
-            calculaTotal +=
-                this.listaProdutos[i].getPreco * this.listaProdutos[i].getQuantidade;
+    // imprime no console se for true e se for false só atualiza
+    Estoque.prototype.calcularValorTotal = function (imprimir) {
+        if (imprimir === void 0) { imprimir = false; }
+        var total = this.listaProdutos.reduce(function (acc, p) { return acc + p.getPreco * p.getQuantidade; }, 0);
+        if (imprimir) {
+            console.log("O valor total do estoque \u00E9 R$ ".concat(total.toFixed(2)));
         }
-        console.log("O valor total do estoque \u00E9 R$ ".concat(calculaTotal));
+        return total;
     };
     // mostra apenas os produtos com estoque baixo
     Estoque.prototype.mostrarProdutosEstoqueBaixo = function () {
         var estoqueBaixo = [];
         for (var i = 0; i < this.listaProdutos.length; i++) {
-            this.listaProdutos[i].verficarEstoqueBaixo();
-            if (this.listaProdutos[i].getEstoqueBaixo == true) {
+            if (this.listaProdutos[i].getEstoqueBaixo) {
                 estoqueBaixo.push(this.listaProdutos[i]);
             }
         }
+        if (estoqueBaixo.length === 0) {
+            console.log("Nenhum produto com estoque baixo.");
+            return;
+        }
+        console.log("==== PRODUTOS COM ESTOQUE BAIXO ====");
         for (var i = 0; i < estoqueBaixo.length; i++) {
-            console.log("");
-            console.log("C\u00F3digo: ".concat(this.listaProdutos[i].getCodigo));
-            console.log("Nome: ".concat(this.listaProdutos[i].getNome));
-            console.log("Pre\u00E7o: ".concat(this.listaProdutos[i].getPreco));
-            console.log("Quantidade: ".concat(this.listaProdutos[i].getQuantidade));
-            console.log("");
+            var prod = estoqueBaixo[i];
+            console.log("C\u00F3digo: ".concat(prod.getCodigo));
+            console.log("Nome: ".concat(prod.getNome));
+            console.log("Pre\u00E7o: ".concat(prod.getPreco));
+            console.log("Quantidade: ".concat(prod.getQuantidade));
+            console.log("--------------------------------");
         }
     };
     return Estoque;
 }());
-// criar produtos
-var p = new Produto("Feijão", "F1", 10.5, 10);
-var p0 = new Produto("Feijão", "F12", 15.5, 5);
-var p1 = new Produto("Arroz", "A1", 8.0, 12);
-// criar estoque
-var e = new Estoque();
-// adicionar produto
-e.adicionarProdruto(p);
-e.adicionarProdruto(p1);
-e.adicionarProdruto(p0);
-// movimentação
-var entrada = new Entrada(p, 10);
-entrada.registrar(e);
-var saida = new Saida(p, 5);
-saida.registrar(e);
-// const entrada2 = new Entrada(p0, 10);
-// entrada2.registrar(e);
-// const entrada3 = new Entrada(p1, 5);
-// entrada3.registrar(e);
-e.registrarMovimentacao(entrada);
-// e.listarProdutos();
-// e.calcularValorTotal();
-// e.mostrarProdutosEstoqueBaixo();
+// instância do estoque
+var estoque = new Estoque();
+// função para criar o produto
+function criarProduto() {
+    var nome = entradaUser("Nome do produto: ");
+    var codigo = entradaUser("Código do produto: ");
+    var preco = Number(entradaUser("Preço: "));
+    var quantidade = Number(entradaUser("Quantidade: "));
+    return new Produto(nome, codigo, preco, quantidade);
+}
+// função para escolher um produto pelo código
+function escolherProduto() {
+    var codigo = entradaUser("Informe o código do produto: ");
+    var produto = estoque.getListaProdutos.find(function (p) { return p.getCodigo === codigo; });
+    if (!produto)
+        console.log("Produto não encontrado!");
+    return produto || null;
+}
+// criando um menu principal dentro de uma function para executar somente se for chamado
+function menu() {
+    var opcao = "";
+    while (opcao !== "0") {
+        console.log("\n=== MENU ESTOQUE ===");
+        console.log("1 - Adicionar produto");
+        console.log("2 - Registrar entrada");
+        console.log("3 - Registrar saída");
+        console.log("4 - Listar produtos");
+        console.log("5 - Gerar relatório de estoque");
+        console.log("6 - Mostrar produtos com estoque baixo");
+        console.log("7 - Pesquisar produto");
+        console.log("0 - Sair");
+        opcao = entradaUser("Escolha uma opção: ");
+        switch (opcao) {
+            case "1":
+                var novoProduto = criarProduto();
+                estoque.adicionarProduto(novoProduto);
+                console.log("Produto adicionado com sucesso!");
+                break;
+            case "2":
+                var prodEntrada = escolherProduto();
+                if (prodEntrada) {
+                    var qtdEntrada = Number(entradaUser("Quantidade de entrada: "));
+                    var entrada = new Entrada(prodEntrada, qtdEntrada);
+                    entrada.registrar(estoque);
+                }
+                break;
+            case "3":
+                var prodSaida = escolherProduto();
+                if (prodSaida) {
+                    var qtdSaida = Number(entradaUser("Quantidade de saída: "));
+                    var saida = new Saida(prodSaida, qtdSaida);
+                    saida.registrar(estoque);
+                }
+                break;
+            case "4":
+                estoque.listarProdutos();
+                break;
+            case "5":
+                estoque.gerarRelatorio();
+                break;
+            case "6":
+                estoque.mostrarProdutosEstoqueBaixo();
+                break;
+            case "7":
+                var termo = entradaUser("Digite o nome do produto para buscar: ");
+                estoque.pesquisarProduto(termo);
+                break;
+            case "0":
+                console.log("Saindo...");
+                break;
+            default:
+                console.log("Opção inválida! Tente novamente.");
+        }
+    }
+}
+// iniciar menu
+menu();
